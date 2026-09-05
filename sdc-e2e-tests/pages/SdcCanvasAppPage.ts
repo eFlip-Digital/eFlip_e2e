@@ -45,35 +45,34 @@ export class SdcCanvasAppPage {
 
   /**
    * Sélectionne le demandeur dans le combo de recherche (cmbDemandeur).
-   * La liste affiche le nom d'affichage (ex. "Sharepoint1 TEST"), pas l'email brut,
-   * et la recherche Office365Users est debouncée sur de vraies frappes clavier —
-   * `.fill()` ne la déclenche pas de façon fiable, d'où `pressSequentially`.
-   * On clique la première option de la liste plutôt que de chercher un texte précis,
-   * en supposant que la recherche (sur l'email complet) ne renvoie qu'un seul résultat.
+   *
+   * Diagnostic confirmé (voir historique du run CI) : le connecteur Office365Users
+   * répond bien HTTP 200, mais chercher sur l'EMAIL COMPLET renvoie une liste vide
+   * (`role=listbox` ouvert, 0 `option`) — la recherche matche le nom d'affichage
+   * ("Sharepoint1 TEST"), pas l'adresse email. `searchTerm` doit donc être un
+   * fragment du nom d'affichage, pas l'email — passer explicitement le bon terme
+   * (dérivable depuis l'email n'est pas fiable : "admin.spo1@..." -> "Admin1
+   * Sharepoint" n'a aucune relation directe avec le nom d'affichage).
    */
-  async selectDemandeur(email: string): Promise<void> {
+  async selectDemandeur(searchTerm: string): Promise<void> {
     const wrapper = this.byControl(Controls.champDemandeur);
     const input = wrapper.locator('input');
-    // Le popup de suggestions n'expose pas de rôle ARIA standard (ni "option", ni
-    // texte prévisible : affiche le nom d'affichage, pas l'email tapé), et le délai
-    // de retour de la recherche Office365Users (asynchrone) est variable — la
-    // navigation clavier échoue parfois si Enter arrive avant que le résultat soit
-    // prêt. On vérifie le résultat et on réessaie plutôt que de deviner un délai fixe.
-    const namePart = email.split('@')[0].split('.')[0]; // "sharepoint1.test@..." -> "sharepoint1"
+    const option = this.frame.getByRole('option').first();
     for (let attempt = 1; attempt <= 3; attempt++) {
       await wrapper.click();
       await input.fill('').catch(() => {});
-      await input.pressSequentially(email, { delay: 80 });
-      await this.page.waitForTimeout(2_500);
-      await input.press('ArrowDown');
-      await this.page.waitForTimeout(300);
-      await input.press('Enter');
-      await this.page.waitForTimeout(500);
-
-      const text = (await wrapper.textContent().catch(() => '')) ?? '';
-      if (new RegExp(namePart, 'i').test(text)) return;
+      await input.pressSequentially(searchTerm, { delay: 80 });
+      try {
+        await option.waitFor({ state: 'visible', timeout: 5_000 });
+        await option.click();
+        return;
+      } catch {
+        // Rien trouvé pour ce terme sur cette tentative — on réessaie.
+      }
     }
-    throw new Error(`Le demandeur (${email}) n'a pas pu être sélectionné après 3 tentatives.`);
+    throw new Error(
+      `Aucune suggestion trouvée pour le demandeur avec le terme de recherche "${searchTerm}" après 3 tentatives.`
+    );
   }
 
   /** Ouvre la fiche détail d'une demande depuis la galerie, par son titre. */

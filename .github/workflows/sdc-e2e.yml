@@ -33,6 +33,7 @@ jobs:
         env:
           SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
           SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
+          SDC_TEST_DISPLAY_NAME_SEARCH: 'Sharepoint1'
         run: |
           npx playwright test 01-demandeur-creer-et-soumettre.spec.ts
           echo "sdc_item_title=$(cat test-results/current-item.txt)" >> "$GITHUB_OUTPUT"
