@@ -106,10 +106,25 @@ export class SdcCanvasAppPage {
     const wrapper = this.byControl(name);
     await wrapper.waitFor({ state: 'visible', timeout: 15_000 });
     const editable = wrapper.locator('input, textarea, [contenteditable="true"]').first();
-    // Le formulaire est une modale scrollable : un champ plus bas (ex. Motif) peut être
-    // hors du viewport visible sans être hors du DOM — Playwright ne le scrolle pas
-    // toujours automatiquement dans un conteneur de scroll custom Power Apps.
-    await editable.scrollIntoViewIfNeeded();
+
+    // Le formulaire est une modale scrollable, mais son scroll n'est pas un vrai scroll
+    // DOM natif (confirmé : `scrollIntoViewIfNeeded` timeout sans jamais rendre le champ
+    // visible) — probablement un rendu virtualisé/transform Power Apps. On scrolle donc
+    // la modale à la molette, au-dessus d'un point stable de son contenu, jusqu'à ce que
+    // le champ visé devienne visible.
+    try {
+      await editable.scrollIntoViewIfNeeded({ timeout: 2_000 });
+    } catch {
+      for (let i = 0; i < 8; i++) {
+        if (await editable.isVisible().catch(() => false)) break;
+        // Point stable à l'intérieur de la modale (zone "Centre de coût"/"Departement",
+        // toujours visible en haut du formulaire) — pas besoin de le résoudre dynamiquement.
+        await this.page.mouse.move(640, 400);
+        await this.page.mouse.wheel(0, 250);
+        await this.page.waitForTimeout(200);
+      }
+    }
+
     await editable.fill(value);
   }
 
