@@ -105,26 +105,34 @@ export class SdcCanvasAppPage {
   async fillControl(name: string, value: string): Promise<void> {
     const wrapper = this.byControl(name);
     await wrapper.waitFor({ state: 'visible', timeout: 15_000 });
-    // `:visible` exclut un éventuel <textarea> caché de mesure/binding qui coexisterait
-    // avec un div contenteditable visible (control "rich text") — sans ça, `.first()`
-    // peut retenir l'élément invisible selon l'ordre du DOM, jamais remplissable.
-    const editable = wrapper.locator('input:visible, textarea:visible, [contenteditable="true"]:visible').first();
 
-    const isReady = () => editable.isVisible().catch(() => false);
-
-    if (!(await isReady())) {
-      // Le formulaire est une modale scrollable, mais son scroll n'est pas un vrai scroll
-      // DOM natif (confirmé : `scrollIntoViewIfNeeded` time out sans jamais rendre le
-      // champ visible) — probablement un rendu virtualisé/transform Power Apps. On
-      // scrolle donc à la molette, par petits pas pour ne pas sauter par-dessus un champ
-      // bas, jusqu'à ce que le champ visé devienne visible.
-      for (let i = 0; i < 25 && !(await isReady()); i++) {
-        await this.page.mouse.move(640, 400);
-        await this.page.mouse.wheel(0, 80);
-        await this.page.waitForTimeout(150);
-      }
+    // Le formulaire est une modale scrollable, mais son scroll n'est pas un vrai scroll
+    // DOM natif (`scrollIntoViewIfNeeded` time out sans jamais rendre le champ visible)
+    // — probablement un rendu virtualisé/transform Power Apps. On scrolle donc à la
+    // molette, par petits pas pour ne pas sauter par-dessus un champ bas, jusqu'à ce
+    // que le wrapper du champ visé soit dans le viewport.
+    const isWrapperVisible = () => wrapper.isVisible().catch(() => false);
+    for (let i = 0; i < 25 && !(await isWrapperVisible()); i++) {
+      await this.page.mouse.move(640, 400);
+      await this.page.mouse.wheel(0, 80);
+      await this.page.waitForTimeout(150);
     }
 
+    // Un contrôle "texte riche" (ex. rtxtMotifDemande) rend souvent sa zone éditable
+    // dans un iframe imbriqué (comme un éditeur WYSIWYG classique) — invisible à un
+    // sélecteur CSS scopé au wrapper. On le détecte et on cible son <body> le cas échéant.
+    const nestedIframeCount = await wrapper.locator('iframe').count().catch(() => 0);
+    if (nestedIframeCount > 0) {
+      const nestedBody = wrapper.frameLocator('iframe').locator('body');
+      await nestedBody.click();
+      await nestedBody.fill(value);
+      return;
+    }
+
+    // `:visible` exclut un éventuel <textarea> caché de mesure/binding qui coexisterait
+    // avec un div contenteditable visible — sans ça, `.first()` peut retenir l'élément
+    // invisible selon l'ordre du DOM, jamais remplissable.
+    const editable = wrapper.locator('input:visible, textarea:visible, [contenteditable="true"]:visible').first();
     await editable.fill(value);
   }
 
