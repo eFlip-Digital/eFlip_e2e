@@ -32,6 +32,36 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   await app.goToOnglet('Mes demandes');
   await app.openNewRequestForm();
 
+  // --- DIAGNOSTIC TEMPORAIRE : pourquoi la liste de suggestions du Demandeur
+  // n'apparaît jamais en CI. À retirer une fois la vraie cause confirmée. ---
+  const networkLog: string[] = [];
+  page.on('requestfinished', async (req) => {
+    if (/office365users|searchuser/i.test(req.url())) {
+      const res = await req.response();
+      networkLog.push(`${req.method()} ${req.url()} -> ${res?.status()}`);
+    }
+  });
+  page.on('requestfailed', (req) => {
+    if (/office365users|searchuser/i.test(req.url())) {
+      networkLog.push(`FAILED ${req.method()} ${req.url()} -> ${req.failure()?.errorText}`);
+    }
+  });
+
+  const wrapper = app.byControl(Controls.champDemandeur);
+  await wrapper.click();
+  await wrapper.locator('input').pressSequentially(email, { delay: 80 });
+  await page.waitForTimeout(4_000);
+
+  fs.mkdirSync('test-results', { recursive: true });
+  fs.writeFileSync('test-results/network-log.txt', networkLog.join('\n') || '(aucune requête capturée)');
+  const wrapperHtml = await wrapper.evaluate((el) => el.outerHTML).catch((e) => String(e));
+  fs.writeFileSync('test-results/combo-wrapper.html', wrapperHtml);
+  // Ce que voit l'arbre d'accessibilité autour du combo, souvent plus parlant que le HTML brut.
+  const ariaSnapshot = await wrapper.ariaSnapshot().catch((e) => String(e));
+  fs.writeFileSync('test-results/combo-aria.txt', ariaSnapshot);
+  await page.screenshot({ path: 'test-results/combo-debug.png', fullPage: true });
+  // --- FIN DIAGNOSTIC TEMPORAIRE ---
+
   await app.selectDemandeur(email);
   await app.fillControl(Controls.champTitre, itemTitle);
   await app.fillControl(Controls.champMontant, '1000');

@@ -42,6 +42,13 @@ jobs:
           name: playwright-report-01-demandeur
           path: sdc-e2e-tests/playwright-report/
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-01-demandeur
+          path: sdc-e2e-tests/test-results/
+          retention-days: 7
+          include-hidden-files: true
 
   # Rôle Gestionnaire Caisse -> ADMIN2
   gestionnaire-accuser-reception:
