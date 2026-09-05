@@ -16,8 +16,11 @@ env:
   POWERPLATFORM_APP_ID: 79fd1605-4557-46ce-824a-677df11842f7
 
 jobs:
-  # Rôle Demandeur -> SHAREPOINTTEST1 (pas dans la chaîne d'approbation SDC,
-  # donc sûr à utiliser comme demandeur sans auto-approuver son propre round).
+  # Rôle Demandeur -> ADMIN2 (pas SHAREPOINTTEST1 : la connexion SharePoint de l'app
+  # est partagée/intégrée sous l'identité admin.spo2, et SDC_AppliquerPermissions ne
+  # donne accès en lecture qu'au demandeur+créateur — un demandeur autre qu'admin2
+  # rend donc l'item invisible à l'app elle-même. Bug app à corriger séparément,
+  # voir task_e95f8e90 / Shared_SortieCaisse.md. En attendant, ADMIN2 partout.
   demandeur-creer-et-soumettre:
     runs-on: ubuntu-latest
     outputs:
@@ -31,9 +34,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - id: run
         env:
-          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
-          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
-          SDC_TEST_DISPLAY_NAME_SEARCH: 'Sharepoint1'
+          SDC_TEST_EMAIL: ${{ vars.ADMIN2LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.ADMIN2PASSWORD }}
+          SDC_TEST_DISPLAY_NAME_SEARCH: 'Admin2'
         run: |
           npx playwright test 01-demandeur-creer-et-soumettre.spec.ts
           echo "sdc_item_title=$(cat test-results/current-item.txt)" >> "$GITHUB_OUTPUT"
@@ -97,7 +100,7 @@ jobs:
           path: sdc-e2e-tests/playwright-report/
           retention-days: 7
 
-  # Retour au rôle Demandeur -> SHAREPOINTTEST1
+  # Retour au rôle Demandeur -> ADMIN2 (voir note ci-dessus)
   demandeur-soumettre-retour:
     needs: [demandeur-creer-et-soumettre, directeur-confirmer-paiement]
     runs-on: ubuntu-latest
@@ -109,8 +112,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - env:
-          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
-          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
+          SDC_TEST_EMAIL: ${{ vars.ADMIN2LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.ADMIN2PASSWORD }}
           SDC_ITEM_TITLE: ${{ needs.demandeur-creer-et-soumettre.outputs.sdc_item_title }}
         run: npx playwright test 04-demandeur-soumettre-retour.spec.ts
       - uses: actions/upload-artifact@v4
@@ -131,8 +134,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - env:
-          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
-          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
+          SDC_TEST_EMAIL: ${{ vars.ADMIN2LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.ADMIN2PASSWORD }}
           SDC_ITEM_TITLE: ${{ needs.demandeur-creer-et-soumettre.outputs.sdc_item_title }}
         run: npx playwright test 05-galeries-et-timeline.spec.ts
       - uses: actions/upload-artifact@v4

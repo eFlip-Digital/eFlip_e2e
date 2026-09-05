@@ -18,10 +18,21 @@ Reste à faire avant le premier run réel :
 
    | Rôle | Login (`vars.*`) | Mot de passe (`secrets.*`) |
    |---|---|---|
-   | Demandeur | `SHAREPOINTTEST1LOGINNAME` | `SHAREPOINTTEST1PASSWORD` |
+   | Demandeur | `ADMIN2LOGINNAME` | `ADMIN2PASSWORD` |
    | Gestionnaire Caisse | `ADMIN2LOGINNAME` | `ADMIN2PASSWORD` |
    | Directeur Financier | `SHAREPOINTTEST2LOGINNAME` | `SHAREPOINTTEST2PASSWORD` |
    | ADG | `ADMIN1LOGINNAME` | `ADMIN1PASSWORD` (pas encore câblé dans un job — à ajouter si un scénario couvre l'approbation ADG) |
+
+   ⚠️ **Demandeur = ADMIN2, pas un compte SHAREPOINTTEST dédié.** Découvert en testant :
+   la connexion SharePoint de l'app est partagée/intégrée sous l'identité admin.spo2 —
+   toutes les lectures/écritures de l'app passent par ce compte quel que soit
+   l'utilisateur réellement connecté dans l'UI. Le flux `SDC_AppliquerPermissions`
+   restreint ensuite la lecture de chaque demande au demandeur+créateur ; si les deux
+   sont un compte autre qu'admin2, admin2 (l'identité réelle de la connexion) n'a plus
+   accès à l'item, qui devient invisible pour l'app — y compris pour son propre
+   créateur. Bug applicatif réel, pas un problème de script (tâche de suivi créée,
+   voir Shared_SortieCaisse.md). En attendant un correctif, le Demandeur des tests doit
+   rester ADMIN2.
 
    ⚠️ **Ces 4 mots de passe sont actuellement stockés comme Organization *Variables*
    (visibles en clair, visibilité "Public repositories"), pas comme *Secrets*.**
@@ -38,7 +49,7 @@ Reste à faire avant le premier run réel :
 cd sdc-e2e-tests
 npm install
 npx playwright install --with-deps chromium
-cp .env.example .env   # puis compléter SDC_TEST_EMAIL / SDC_TEST_PASSWORD (compte SHAREPOINTTEST1 pour ce test)
+cp .env.example .env   # puis compléter SDC_TEST_EMAIL / SDC_TEST_PASSWORD (compte ADMIN2 pour ce test)
 npx playwright test 01-demandeur-creer-et-soumettre.spec.ts
 SDC_ITEM_TITLE=<titre affiché par le test précédent> npx playwright test 02-gestionnaire-accuser-reception.spec.ts
 # etc.
