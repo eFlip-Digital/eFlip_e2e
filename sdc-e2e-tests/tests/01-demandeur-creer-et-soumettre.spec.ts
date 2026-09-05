@@ -52,7 +52,7 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   // Laisse le contrôle Attachments finir d'enregistrer le fichier côté état interne
   // avant de cliquer Enregistrer (sinon la validation du formulaire peut s'exécuter
   // sur un état encore vide et refuser silencieusement de sauvegarder).
-  await app.frame.getByText('justificatif-test.pdf').waitFor({ state: 'visible', timeout: 10_000 });
+  await app.frame.getByText('justificatif-test.pdf').first().waitFor({ state: 'visible', timeout: 10_000 });
   await page.waitForTimeout(1_500);
 
   await app.clickControl(Controls.formSaveOrEdit);
