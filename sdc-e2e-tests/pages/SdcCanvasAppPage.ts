@@ -115,13 +115,14 @@ export class SdcCanvasAppPage {
     try {
       await editable.scrollIntoViewIfNeeded({ timeout: 2_000 });
     } catch {
-      for (let i = 0; i < 8; i++) {
+      // Petits pas : un pas trop large peut sauter par-dessus un champ bas (donc "pas
+      // encore visible" puis directement "déjà scrollé trop loin", sans jamais passer
+      // par un état visible détectable entre deux itérations).
+      for (let i = 0; i < 25; i++) {
         if (await editable.isVisible().catch(() => false)) break;
-        // Point stable à l'intérieur de la modale (zone "Centre de coût"/"Departement",
-        // toujours visible en haut du formulaire) — pas besoin de le résoudre dynamiquement.
         await this.page.mouse.move(640, 400);
-        await this.page.mouse.wheel(0, 250);
-        await this.page.waitForTimeout(200);
+        await this.page.mouse.wheel(0, 80);
+        await this.page.waitForTimeout(150);
       }
     }
 
