@@ -37,8 +37,15 @@ test('Demandeur soumet le retour de caisse', async ({ page }) => {
   await app.fillControl(Controls.champMontantRetour, '500');
   await app.fillControl(Controls.champMontantRetourEnLettres, 'cinq cents');
 
-  const fileInput = app.byControl(Controls.piecesJointesRetour).locator('input[type="file"]');
-  await fileInput.setInputFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
+  // Passer par le vrai flux `filechooser` (bouton "Joindre un fichier") plutôt que de
+  // poser les fichiers directement sur l'<input> caché : sinon le fichier reste
+  // "Unsaved"/disabled indéfiniment (constaté sur le formulaire de création, cf. 01).
+  const piecesJointesRetourWrapper = app.byControl(Controls.piecesJointesRetour);
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    piecesJointesRetourWrapper.getByText('Joindre un fichier', { exact: true }).click(),
+  ]);
+  await fileChooser.setFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
 
   await app.clickControl(Controls.btnEnvoyerRetour);
 

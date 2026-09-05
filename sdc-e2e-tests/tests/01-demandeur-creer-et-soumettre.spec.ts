@@ -44,27 +44,21 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   await app.fillControl(Controls.champMotif, 'Test end-to-end automatisé — ne pas traiter');
 
   // Justificatifs obligatoire à la création (astérisque rouge sur "Justificatifs *"),
-  // sinon le formulaire refuse de s'enregistrer silencieusement (modale reste ouverte).
+  // sinon le formulaire refuse de s'enregistrer silencieusement (modale reste ouverte
+  // avec "Veuillez compléter tous les champs obligatoires" — confirmé par capture).
+  // Le fichier reste "Unsaved"/disabled quand on le pose directement sur l'<input>
+  // caché : on passe par le vrai flux `filechooser` déclenché par le bouton "Joindre
+  // un fichier", plus proche de ce qu'un vrai clic utilisateur produit.
   const piecesJointesWrapper = app.byControl(Controls.piecesJointesDemande);
   await app.scrollModalUntilVisible(piecesJointesWrapper);
-  const fileInput = piecesJointesWrapper.locator('input[type="file"]');
-  await fileInput.setInputFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
-  // Laisse le contrôle Attachments finir d'enregistrer le fichier côté état interne
-  // avant de cliquer Enregistrer (sinon la validation du formulaire peut s'exécuter
-  // sur un état encore vide et refuser silencieusement de sauvegarder).
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    app.frame.getByText('Joindre un fichier', { exact: true }).click(),
+  ]);
+  await fileChooser.setFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
   await app.frame.getByText('justificatif-test.pdf').first().waitFor({ state: 'visible', timeout: 10_000 });
 
   await app.clickControl(Controls.formSaveOrEdit);
-
-  // --- DIAGNOSTIC TEMPORAIRE : voir ce qui se passe réellement après le clic
-  // Enregistrer (le fichier reste "Unsaved" indéfiniment — probablement normal tant
-  // que l'item n'existe pas encore côté serveur, donc pas la vraie cause du blocage).
-  await page.waitForTimeout(3_000);
-  fs.mkdirSync('test-results', { recursive: true });
-  const snapshotAfterSave = await app.frame.locator('body').ariaSnapshot().catch((e) => String(e));
-  fs.writeFileSync('test-results/after-save-aria.txt', snapshotAfterSave);
-  await page.screenshot({ path: 'test-results/after-save.png', fullPage: true });
-  // --- FIN DIAGNOSTIC TEMPORAIRE ---
 
   // La modale doit se fermer (le titre "Nouvelle demande..." disparaît) si
   // l'enregistrement a réellement réussi — sinon erreur explicite ici plutôt qu'un
