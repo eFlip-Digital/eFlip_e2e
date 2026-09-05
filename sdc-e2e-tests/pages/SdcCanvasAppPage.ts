@@ -52,17 +52,28 @@ export class SdcCanvasAppPage {
    * en supposant que la recherche (sur l'email complet) ne renvoie qu'un seul résultat.
    */
   async selectDemandeur(email: string): Promise<void> {
-    const combo = this.byControl(Controls.champDemandeur);
-    await combo.click();
-    const input = combo.locator('input');
-    await input.pressSequentially(email, { delay: 80 });
+    const wrapper = this.byControl(Controls.champDemandeur);
+    const input = wrapper.locator('input');
     // Le popup de suggestions n'expose pas de rôle ARIA standard (ni "option", ni
-    // texte prévisible : affiche le nom d'affichage, pas l'email tapé). On laisse le
-    // temps à la recherche Office365Users (asynchrone, non délégable) de revenir,
-    // puis on navigue au clavier — fonctionne quelle que soit la structure DOM interne.
-    await this.page.waitForTimeout(3_000);
-    await input.press('ArrowDown');
-    await input.press('Enter');
+    // texte prévisible : affiche le nom d'affichage, pas l'email tapé), et le délai
+    // de retour de la recherche Office365Users (asynchrone) est variable — la
+    // navigation clavier échoue parfois si Enter arrive avant que le résultat soit
+    // prêt. On vérifie le résultat et on réessaie plutôt que de deviner un délai fixe.
+    const namePart = email.split('@')[0].split('.')[0]; // "sharepoint1.test@..." -> "sharepoint1"
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await wrapper.click();
+      await input.fill('').catch(() => {});
+      await input.pressSequentially(email, { delay: 80 });
+      await this.page.waitForTimeout(2_500);
+      await input.press('ArrowDown');
+      await this.page.waitForTimeout(300);
+      await input.press('Enter');
+      await this.page.waitForTimeout(500);
+
+      const text = (await wrapper.textContent().catch(() => '')) ?? '';
+      if (new RegExp(namePart, 'i').test(text)) return;
+    }
+    throw new Error(`Le demandeur (${email}) n'a pas pu être sélectionné après 3 tentatives.`);
   }
 
   /** Ouvre la fiche détail d'une demande depuis la galerie, par son titre. */
@@ -96,6 +107,10 @@ export class SdcCanvasAppPage {
     const wrapper = this.byControl(name);
     await wrapper.waitFor({ state: 'visible', timeout: 15_000 });
     const editable = wrapper.locator('input, textarea, [contenteditable="true"]').first();
+    // Le formulaire est une modale scrollable : un champ plus bas (ex. Motif) peut être
+    // hors du viewport visible sans être hors du DOM — Playwright ne le scrolle pas
+    // toujours automatiquement dans un conteneur de scroll custom Power Apps.
+    await editable.scrollIntoViewIfNeeded();
     await editable.fill(value);
   }
 
