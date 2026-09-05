@@ -105,21 +105,20 @@ export class SdcCanvasAppPage {
   async fillControl(name: string, value: string): Promise<void> {
     const wrapper = this.byControl(name);
     await wrapper.waitFor({ state: 'visible', timeout: 15_000 });
-    const editable = wrapper.locator('input, textarea, [contenteditable="true"]').first();
+    // `:visible` exclut un éventuel <textarea> caché de mesure/binding qui coexisterait
+    // avec un div contenteditable visible (control "rich text") — sans ça, `.first()`
+    // peut retenir l'élément invisible selon l'ordre du DOM, jamais remplissable.
+    const editable = wrapper.locator('input:visible, textarea:visible, [contenteditable="true"]:visible').first();
 
-    // Le formulaire est une modale scrollable, mais son scroll n'est pas un vrai scroll
-    // DOM natif (confirmé : `scrollIntoViewIfNeeded` timeout sans jamais rendre le champ
-    // visible) — probablement un rendu virtualisé/transform Power Apps. On scrolle donc
-    // la modale à la molette, au-dessus d'un point stable de son contenu, jusqu'à ce que
-    // le champ visé devienne visible.
-    try {
-      await editable.scrollIntoViewIfNeeded({ timeout: 2_000 });
-    } catch {
-      // Petits pas : un pas trop large peut sauter par-dessus un champ bas (donc "pas
-      // encore visible" puis directement "déjà scrollé trop loin", sans jamais passer
-      // par un état visible détectable entre deux itérations).
-      for (let i = 0; i < 25; i++) {
-        if (await editable.isVisible().catch(() => false)) break;
+    const isReady = () => editable.isVisible().catch(() => false);
+
+    if (!(await isReady())) {
+      // Le formulaire est une modale scrollable, mais son scroll n'est pas un vrai scroll
+      // DOM natif (confirmé : `scrollIntoViewIfNeeded` time out sans jamais rendre le
+      // champ visible) — probablement un rendu virtualisé/transform Power Apps. On
+      // scrolle donc à la molette, par petits pas pour ne pas sauter par-dessus un champ
+      // bas, jusqu'à ce que le champ visé devienne visible.
+      for (let i = 0; i < 25 && !(await isReady()); i++) {
         await this.page.mouse.move(640, 400);
         await this.page.mouse.wheel(0, 80);
         await this.page.waitForTimeout(150);
