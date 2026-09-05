@@ -1,0 +1,135 @@
+name: SDC E2E (Sortie de caisse)
+
+on:
+  workflow_dispatch: {}
+  # Décommenter une fois le scénario validé manuellement au moins une fois de bout
+  # en bout (sélecteurs confirmés via 00-discover-selectors) :
+  # schedule:
+  #   - cron: '0 6 * * 1-5'
+
+defaults:
+  run:
+    working-directory: sdc-e2e-tests
+
+env:
+  POWERPLATFORM_ENV_ID: cade14ab-65b6-e790-bb35-f1e938f76958
+  POWERPLATFORM_APP_ID: 79fd1605-4557-46ce-824a-677df11842f7
+
+jobs:
+  # Rôle Demandeur -> SHAREPOINTTEST1 (pas dans la chaîne d'approbation SDC,
+  # donc sûr à utiliser comme demandeur sans auto-approuver son propre round).
+  demandeur-creer-et-soumettre:
+    runs-on: ubuntu-latest
+    outputs:
+      sdc_item_title: ${{ steps.run.outputs.sdc_item_title }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - id: run
+        env:
+          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
+        run: |
+          npx playwright test 01-demandeur-creer-et-soumettre.spec.ts
+          echo "sdc_item_title=$(cat test-results/current-item.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-01-demandeur
+          path: sdc-e2e-tests/playwright-report/
+          retention-days: 7
+
+  # Rôle Gestionnaire Caisse -> ADMIN2
+  gestionnaire-accuser-reception:
+    needs: demandeur-creer-et-soumettre
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - env:
+          SDC_TEST_EMAIL: ${{ vars.ADMIN2LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.ADMIN2PASSWORD }}
+          SDC_ITEM_TITLE: ${{ needs.demandeur-creer-et-soumettre.outputs.sdc_item_title }}
+        run: npx playwright test 02-gestionnaire-accuser-reception.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-02-gestionnaire
+          path: sdc-e2e-tests/playwright-report/
+          retention-days: 7
+
+  # Rôle Directeur Financier -> SHAREPOINTTEST2
+  directeur-confirmer-paiement:
+    needs: [demandeur-creer-et-soumettre, gestionnaire-accuser-reception]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - env:
+          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST2LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST2PASSWORD }}
+          SDC_ITEM_TITLE: ${{ needs.demandeur-creer-et-soumettre.outputs.sdc_item_title }}
+        run: npx playwright test 03-directeur-financier-confirmer-paiement.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-03-directeur
+          path: sdc-e2e-tests/playwright-report/
+          retention-days: 7
+
+  # Retour au rôle Demandeur -> SHAREPOINTTEST1
+  demandeur-soumettre-retour:
+    needs: [demandeur-creer-et-soumettre, directeur-confirmer-paiement]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - env:
+          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
+          SDC_ITEM_TITLE: ${{ needs.demandeur-creer-et-soumettre.outputs.sdc_item_title }}
+        run: npx playwright test 04-demandeur-soumettre-retour.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-04-retour
+          path: sdc-e2e-tests/playwright-report/
+          retention-days: 7
+
+  verifier-galeries-et-timeline:
+    needs: [demandeur-creer-et-soumettre, demandeur-soumettre-retour]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - env:
+          SDC_TEST_EMAIL: ${{ vars.SHAREPOINTTEST1LOGINNAME }}
+          SDC_TEST_PASSWORD: ${{ secrets.SHAREPOINTTEST1PASSWORD }}
+          SDC_ITEM_TITLE: ${{ needs.demandeur-creer-et-soumettre.outputs.sdc_item_title }}
+        run: npx playwright test 05-galeries-et-timeline.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-05-final
+          path: sdc-e2e-tests/playwright-report/
+          retention-days: 7
