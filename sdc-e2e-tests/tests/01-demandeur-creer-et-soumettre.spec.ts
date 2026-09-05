@@ -43,19 +43,20 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   await app.fillControl(Controls.champMontantEnLettre, 'mille');
   await app.fillControl(Controls.champMotif, 'Test end-to-end automatisé — ne pas traiter');
 
-  // Justificatifs obligatoire à la création (astérisque rouge sur "Justificatifs *"),
-  // sinon le formulaire refuse de s'enregistrer silencieusement (modale reste ouverte
-  // avec "Veuillez compléter tous les champs obligatoires" — confirmé par capture).
-  // Le fichier reste "Unsaved"/disabled quand on le pose directement sur l'<input>
-  // caché : on passe par le vrai flux `filechooser` déclenché par le bouton "Joindre
-  // un fichier", plus proche de ce qu'un vrai clic utilisateur produit.
+  // Departement : requis par la validation réelle (IsBlank(drpDepartements.Selected)
+  // dans btnSDCForm_SaveOrEdit.OnSelect) bien que sans astérisque rouge visuel — vraie
+  // cause du blocage "Veuillez compléter tous les champs obligatoires" (confirmé en
+  // lisant le code source, pas la pièce jointe comme on le pensait initialement).
+  const departementWrapper = app.byControl(Controls.champDepartement);
+  await app.scrollModalUntilVisible(departementWrapper);
+  await departementWrapper.click();
+  await app.frame.getByRole('option').first().click();
+
+  // Justificatifs obligatoire à la création (astérisque rouge sur "Justificatifs *").
   const piecesJointesWrapper = app.byControl(Controls.piecesJointesDemande);
   await app.scrollModalUntilVisible(piecesJointesWrapper);
-  const [fileChooser] = await Promise.all([
-    page.waitForEvent('filechooser'),
-    app.frame.getByText('Joindre un fichier', { exact: true }).click(),
-  ]);
-  await fileChooser.setFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
+  const fileInput = piecesJointesWrapper.locator('input[type="file"]');
+  await fileInput.setInputFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
   await app.frame.getByText('justificatif-test.pdf').first().waitFor({ state: 'visible', timeout: 10_000 });
 
   await app.clickControl(Controls.formSaveOrEdit);
