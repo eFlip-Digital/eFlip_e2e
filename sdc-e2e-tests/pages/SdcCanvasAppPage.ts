@@ -98,6 +98,21 @@ export class SdcCanvasAppPage {
   }
 
   /**
+   * Scrolle la modale à la molette (par petits pas, pour ne pas sauter par-dessus un
+   * champ bas) jusqu'à ce que `locator` soit dans le viewport. Nécessaire car cette
+   * modale n'a pas un vrai scroll DOM natif — `scrollIntoViewIfNeeded` time out sans
+   * jamais rendre le champ visible (rendu virtualisé/transform Power Apps).
+   */
+  async scrollModalUntilVisible(locator: ReturnType<SdcCanvasAppPage['byControl']>): Promise<void> {
+    const isVisible = () => locator.isVisible().catch(() => false);
+    for (let i = 0; i < 25 && !(await isVisible()); i++) {
+      await this.page.mouse.move(640, 400);
+      await this.page.mouse.wheel(0, 80);
+      await this.page.waitForTimeout(150);
+    }
+  }
+
+  /**
    * `[data-control-name]` résout vers le `<div>` wrapper du contrôle, pas vers le vrai
    * `<input>`/`<textarea>` interne (contrairement à un HTML natif) — d'où ce helper au
    * lieu d'un simple `.fill()` sur `byControl(name)`.
@@ -105,18 +120,7 @@ export class SdcCanvasAppPage {
   async fillControl(name: string, value: string): Promise<void> {
     const wrapper = this.byControl(name);
     await wrapper.waitFor({ state: 'visible', timeout: 15_000 });
-
-    // Le formulaire est une modale scrollable, mais son scroll n'est pas un vrai scroll
-    // DOM natif (`scrollIntoViewIfNeeded` time out sans jamais rendre le champ visible)
-    // — probablement un rendu virtualisé/transform Power Apps. On scrolle donc à la
-    // molette, par petits pas pour ne pas sauter par-dessus un champ bas, jusqu'à ce
-    // que le wrapper du champ visé soit dans le viewport.
-    const isWrapperVisible = () => wrapper.isVisible().catch(() => false);
-    for (let i = 0; i < 25 && !(await isWrapperVisible()); i++) {
-      await this.page.mouse.move(640, 400);
-      await this.page.mouse.wheel(0, 80);
-      await this.page.waitForTimeout(150);
-    }
+    await this.scrollModalUntilVisible(wrapper);
 
     // Un contrôle "texte riche" (ex. rtxtMotifDemande) rend souvent sa zone éditable
     // dans un iframe imbriqué (comme un éditeur WYSIWYG classique) — invisible à un

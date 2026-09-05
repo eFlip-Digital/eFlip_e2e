@@ -29,6 +29,7 @@ export const Controls = {
   champMotif: 'rtxtMotifDemande',
   champCentreDeCout: 'drpCentreDeCoutDemande', // optionnel
   champDepartement: 'drpDepartements', // optionnel
+  piecesJointesDemande: 'attachPieceJointes', // requis à la création (astérisque rouge "Justificatifs *")
 
   // Actions sur une demande sélectionnée (modales par étape)
   btnSoumettreDemande: 'btnMdConfirmSubmit_4', // round "Demande"

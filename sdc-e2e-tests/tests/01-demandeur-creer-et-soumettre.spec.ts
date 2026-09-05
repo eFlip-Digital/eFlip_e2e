@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
+import * as path from 'path';
 import { loginWithCredentials, buildCanvasAppPlayUrl, requiredEnv } from '../support/auth';
 import { SdcCanvasAppPage } from '../pages/SdcCanvasAppPage';
 import { Controls } from '../support/selectors';
@@ -41,6 +42,13 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   await app.fillControl(Controls.champMontant, '1000');
   await app.fillControl(Controls.champMontantEnLettre, 'mille');
   await app.fillControl(Controls.champMotif, 'Test end-to-end automatisé — ne pas traiter');
+
+  // Justificatifs obligatoire à la création (astérisque rouge sur "Justificatifs *"),
+  // sinon le formulaire refuse de s'enregistrer silencieusement (modale reste ouverte).
+  const piecesJointesWrapper = app.byControl(Controls.piecesJointesDemande);
+  await app.scrollModalUntilVisible(piecesJointesWrapper);
+  const fileInput = piecesJointesWrapper.locator('input[type="file"]');
+  await fileInput.setInputFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
 
   await app.clickControl(Controls.formSaveOrEdit);
 
