@@ -43,12 +43,22 @@ export class SdcCanvasAppPage {
     await this.clickControl(Controls.btnAjouter);
   }
 
-  /** Sélectionne le demandeur dans le combo de recherche (cmbDemandeur) par email. */
+  /**
+   * Sélectionne le demandeur dans le combo de recherche (cmbDemandeur).
+   * La liste affiche le nom d'affichage (ex. "Sharepoint1 TEST"), pas l'email brut,
+   * et la recherche Office365Users est debouncée sur de vraies frappes clavier —
+   * `.fill()` ne la déclenche pas de façon fiable, d'où `pressSequentially`.
+   * On clique la première option de la liste plutôt que de chercher un texte précis,
+   * en supposant que la recherche (sur l'email complet) ne renvoie qu'un seul résultat.
+   */
   async selectDemandeur(email: string): Promise<void> {
     const combo = this.byControl(Controls.champDemandeur);
     await combo.click();
-    await combo.locator('input').fill(email);
-    await this.frame.getByText(email, { exact: false }).first().click();
+    const input = combo.locator('input');
+    await input.pressSequentially(email, { delay: 80 });
+    const option = this.frame.getByRole('option').first();
+    await option.waitFor({ state: 'visible', timeout: 20_000 });
+    await option.click();
   }
 
   /** Ouvre la fiche détail d'une demande depuis la galerie, par son titre. */
