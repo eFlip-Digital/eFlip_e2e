@@ -34,7 +34,9 @@ export class SdcCanvasAppPage {
   }
 
   async goToOnglet(label: 'Mes demandes' | 'Mes validations'): Promise<void> {
-    await this.frame.getByText(label, { exact: true }).click();
+    // Fluent UI (TabList2) rend le libellé deux fois (span visible + span technique
+    // "reserved-space" pour le dimensionnement) : getByText est ambigu, getByRole('tab') ne l'est pas.
+    await this.frame.getByRole('tab', { name: label, exact: true }).click();
   }
 
   async openNewRequestForm(): Promise<void> {
