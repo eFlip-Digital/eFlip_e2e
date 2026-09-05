@@ -49,8 +49,20 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   await app.scrollModalUntilVisible(piecesJointesWrapper);
   const fileInput = piecesJointesWrapper.locator('input[type="file"]');
   await fileInput.setInputFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));
+  // Laisse le contrôle Attachments finir d'enregistrer le fichier côté état interne
+  // avant de cliquer Enregistrer (sinon la validation du formulaire peut s'exécuter
+  // sur un état encore vide et refuser silencieusement de sauvegarder).
+  await app.frame.getByText('justificatif-test.pdf').waitFor({ state: 'visible', timeout: 10_000 });
+  await page.waitForTimeout(1_500);
 
   await app.clickControl(Controls.formSaveOrEdit);
+
+  // La modale doit se fermer (le titre "Nouvelle demande..." disparaît) si
+  // l'enregistrement a réellement réussi — sinon erreur explicite ici plutôt qu'un
+  // timeout générique plus loin sur "carte introuvable".
+  await app.frame
+    .getByText('Nouvelle demande de sortie de caisse', { exact: true })
+    .waitFor({ state: 'hidden', timeout: 20_000 });
 
   // Soumission de la demande (round "Demande")
   await app.openCardByTitle(itemTitle);
