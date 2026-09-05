@@ -34,8 +34,8 @@ test('Demandeur soumet le retour de caisse', async ({ page }) => {
   await app.byControl(Controls.btnSoumettreRetour).waitFor({ state: 'visible', timeout: 15_000 });
   await app.clickControl(Controls.btnSoumettreRetour);
 
-  await app.byControl(Controls.champMontantRetour).fill('500');
-  await app.byControl(Controls.champMontantRetourEnLettres).fill('cinq cents');
+  await app.fillControl(Controls.champMontantRetour, '500');
+  await app.fillControl(Controls.champMontantRetourEnLettres, 'cinq cents');
 
   const fileInput = app.byControl(Controls.piecesJointesRetour).locator('input[type="file"]');
   await fileInput.setInputFiles(path.join(__dirname, '..', 'support', 'fixtures', 'justificatif-test.pdf'));

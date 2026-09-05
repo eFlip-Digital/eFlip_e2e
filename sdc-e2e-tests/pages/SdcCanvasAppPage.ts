@@ -87,6 +87,18 @@ export class SdcCanvasAppPage {
     return (statutText ?? '').trim();
   }
 
+  /**
+   * `[data-control-name]` résout vers le `<div>` wrapper du contrôle, pas vers le vrai
+   * `<input>`/`<textarea>` interne (contrairement à un HTML natif) — d'où ce helper au
+   * lieu d'un simple `.fill()` sur `byControl(name)`.
+   */
+  async fillControl(name: string, value: string): Promise<void> {
+    const wrapper = this.byControl(name);
+    await wrapper.waitFor({ state: 'visible', timeout: 15_000 });
+    const editable = wrapper.locator('input, textarea, [contenteditable="true"]').first();
+    await editable.fill(value);
+  }
+
   async clickControl(name: string): Promise<void> {
     const el = this.byControl(name);
     await el.waitFor({ state: 'visible', timeout: 15_000 });

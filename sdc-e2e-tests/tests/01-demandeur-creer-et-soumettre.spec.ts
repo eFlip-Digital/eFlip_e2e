@@ -33,10 +33,10 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   await app.openNewRequestForm();
 
   await app.selectDemandeur(email);
-  await app.byControl(Controls.champTitre).fill(itemTitle);
-  await app.byControl(Controls.champMontant).fill('1000');
-  await app.byControl(Controls.champMontantEnLettre).fill('mille');
-  await app.byControl(Controls.champMotif).fill('Test end-to-end automatisé — ne pas traiter');
+  await app.fillControl(Controls.champTitre, itemTitle);
+  await app.fillControl(Controls.champMontant, '1000');
+  await app.fillControl(Controls.champMontantEnLettre, 'mille');
+  await app.fillControl(Controls.champMotif, 'Test end-to-end automatisé — ne pas traiter');
 
   await app.clickControl(Controls.formSaveOrEdit);
 
