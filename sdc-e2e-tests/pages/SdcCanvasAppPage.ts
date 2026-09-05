@@ -56,9 +56,13 @@ export class SdcCanvasAppPage {
     await combo.click();
     const input = combo.locator('input');
     await input.pressSequentially(email, { delay: 80 });
-    const option = this.frame.getByRole('option').first();
-    await option.waitFor({ state: 'visible', timeout: 20_000 });
-    await option.click();
+    // Le popup de suggestions n'expose pas de rôle ARIA standard (ni "option", ni
+    // texte prévisible : affiche le nom d'affichage, pas l'email tapé). On laisse le
+    // temps à la recherche Office365Users (asynchrone, non délégable) de revenir,
+    // puis on navigue au clavier — fonctionne quelle que soit la structure DOM interne.
+    await this.page.waitForTimeout(3_000);
+    await input.press('ArrowDown');
+    await input.press('Enter');
   }
 
   /** Ouvre la fiche détail d'une demande depuis la galerie, par son titre. */
