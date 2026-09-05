@@ -53,7 +53,10 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   // avant de cliquer Enregistrer (sinon la validation du formulaire peut s'exécuter
   // sur un état encore vide et refuser silencieusement de sauvegarder).
   await app.frame.getByText('justificatif-test.pdf').first().waitFor({ state: 'visible', timeout: 10_000 });
-  await page.waitForTimeout(1_500);
+  // Le fichier reste marqué "Unsaved" (bouton désactivé) tant que l'upload interne
+  // n'est pas terminé — cliquer Enregistrer pendant ce temps échoue silencieusement
+  // (la modale reste ouverte, sans message d'erreur visible).
+  await app.frame.getByText('Unsaved', { exact: true }).waitFor({ state: 'hidden', timeout: 20_000 });
 
   await app.clickControl(Controls.formSaveOrEdit);
 
