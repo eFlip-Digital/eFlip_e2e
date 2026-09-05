@@ -53,12 +53,18 @@ test('Demandeur crée et soumet une nouvelle demande de sortie de caisse', async
   // avant de cliquer Enregistrer (sinon la validation du formulaire peut s'exécuter
   // sur un état encore vide et refuser silencieusement de sauvegarder).
   await app.frame.getByText('justificatif-test.pdf').first().waitFor({ state: 'visible', timeout: 10_000 });
-  // Le fichier reste marqué "Unsaved" (bouton désactivé) tant que l'upload interne
-  // n'est pas terminé — cliquer Enregistrer pendant ce temps échoue silencieusement
-  // (la modale reste ouverte, sans message d'erreur visible).
-  await app.frame.getByText('Unsaved', { exact: true }).waitFor({ state: 'hidden', timeout: 20_000 });
 
   await app.clickControl(Controls.formSaveOrEdit);
+
+  // --- DIAGNOSTIC TEMPORAIRE : voir ce qui se passe réellement après le clic
+  // Enregistrer (le fichier reste "Unsaved" indéfiniment — probablement normal tant
+  // que l'item n'existe pas encore côté serveur, donc pas la vraie cause du blocage).
+  await page.waitForTimeout(3_000);
+  fs.mkdirSync('test-results', { recursive: true });
+  const snapshotAfterSave = await app.frame.locator('body').ariaSnapshot().catch((e) => String(e));
+  fs.writeFileSync('test-results/after-save-aria.txt', snapshotAfterSave);
+  await page.screenshot({ path: 'test-results/after-save.png', fullPage: true });
+  // --- FIN DIAGNOSTIC TEMPORAIRE ---
 
   // La modale doit se fermer (le titre "Nouvelle demande..." disparaît) si
   // l'enregistrement a réellement réussi — sinon erreur explicite ici plutôt qu'un
